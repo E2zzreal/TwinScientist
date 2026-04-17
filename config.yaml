@@ -1,0 +1,24 @@
+# Twin Scientist Global Configuration
+
+# LLM
+model: claude-sonnet-4-20250514
+max_tokens: 4096
+
+# Context budget (tokens)
+context_budget:
+  total: 100000
+  fixed_zone: 8000
+  dynamic_zone: 12000
+  conversation_zone: 80000
+
+# Conversation management
+conversation:
+  recent_window: 10          # keep last N turns as raw text
+  compression_trigger: 10    # compress when exceeding recent_window
+  emergency_threshold: 70000 # force compress when conversation_zone usage exceeds this
+
+# File paths
+paths:
+  persona_dir: persona
+  memory_dir: memory
+  evolution_dir: evolution

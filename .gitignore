@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Data (large files, user-specific)
+data/raw/
+data/audio/
+*.mp3
+*.wav
+*.mp4
+
+# Model weights
+models/
+*.pt
+*.pth
+*.ckpt
+*.bin
+
+# SQLite
+*.db
+*.sqlite3
+
+# Jupyter
+.ipynb_checkpoints/

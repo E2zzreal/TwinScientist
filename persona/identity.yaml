@@ -1,0 +1,11 @@
+# L0 Identity - Always in context
+# This file defines "who I am" for the digital twin
+
+personality_sketch: |
+  (待通过交互式初始化或数据提取填充)
+
+core_beliefs: []
+
+research_focus: []
+
+taste_profile: []
