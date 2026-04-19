@@ -31,48 +31,73 @@ cd TwinScientist
 
 # 2. 创建虚拟环境
 python3 -m venv venv
-source venv/bin/activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 3. 安装依赖
 pip install -r requirements.txt
 
-# 4. 配置 API Key
+# 4. 配置 API（编辑 config.yaml 填入 base_url 和 model）
 cp .env.example .env
-# 编辑 .env 填入 ANTHROPIC_API_KEY
+# 编辑 .env 填入 OPENAI_API_KEY=your-key
 
-# 5. 运行 CLI 对话
+# 5. 运行文字对话
 python -m interface.cli
+
+# 6. 运行语音对话（需额外安装 openai-whisper）
+python -c "from interface.voice import run_voice_cli; run_voice_cli('.')"
+
+# 7. 会议参与（转写文件模式）
+python -c "
+from agent.main import TwinScientist
+from interface.meeting import run_meeting_from_audio
+agent = TwinScientist('.')
+run_meeting_from_audio(agent, 'transcript.txt', twin_name='张三',
+    confident_domains=['氢能催化剂', '电解水'])
+"
 ```
 
 ## 项目结构
 
 ```
 TwinScientist/
-├── persona/                  # 人格层（YAML，可直接编辑）
-├── memory/                   # 记忆层（话题索引 + 论文印象）
-├── evolution/                # 进化日志
-├── ingestion/                # 数据摄入管道
-├── agent/                    # Agent 核心（主循环 + 工具 + 上下文管理）
-├── multimodal/               # 多模态（图像理解 + 语音克隆）
-├── interface/                # 交互层（CLI / 语音 / 会议）
-└── tests/                    # 测试
+├── config.yaml              # 配置（API provider / model / base_url）
+├── persona/                 # 人格层（YAML，可直接编辑）
+├── memory/                  # 记忆层（话题索引 + 论文印象 + 对话记忆）
+├── evolution/               # 进化日志（自动记录风格和立场变更）
+├── ingestion/               # 数据摄入（PDF / 录音 / 交互式校准）
+├── agent/                   # Agent 核心（主循环 / 工具 / 上下文管理 / 进化）
+├── multimodal/              # 多模态（图像理解 / STT / TTS / 屏幕截图）
+├── interface/               # 交互层（CLI / 语音 / 会议）
+├── docs/                    # 文档（架构设计 / 使用指南）
+└── tests/                   # 自动化测试（100 个测试）
 ```
 
 ## 里程碑
 
-| # | 里程碑 | 状态 |
-|---|--------|------|
-| M1 | 能对话 — CLI 文字对话，人格风格表达 | 开发中 |
-| M2 | 能记忆 — recall 三级加载 + 对话压缩 | 待开始 |
-| M3 | 能摄入 — 论文/录音半自动摄入管道 | 待开始 |
-| M4 | 能进化 — 反馈回路 + 变更日志 | 待开始 |
-| M5 | 能看图 — 论文图表理解 | 待开始 |
-| M6 | 能说话 — 语音克隆 + STT/TTS | 待开始 |
-| M7 | 能参会 — 实时会议参与 + PPT 识别 | 待开始 |
+| # | 里程碑 | 核心能力 | 状态 |
+|---|--------|---------|------|
+| M1 | 能对话 | CLI 文字对话，人格风格表达 | ✅ 完成 |
+| M2 | 能记忆 | LLM智能压缩 + 跨会话持久化 | ✅ 完成 |
+| M3 | 能摄入 | PDF/录音/交互式摄入管道 | ✅ 完成 |
+| M4 | 能进化 | 风格校正 + 立场更新 + 变更日志 | ✅ 完成 |
+| M5 | 能看图 | 论文图表 / 实验截图科学分析 | ✅ 完成 |
+| M6 | 能说话 | STT(Whisper) + TTS(edge-tts) 语音对话 | ✅ 完成 |
+| M7 | 能参会 | 实时会议 + PPT识别 + 发言时机判断 | ✅ 完成 |
+
+## 支持的 API 服务商
+
+| 服务商 | provider | 示例 model |
+|--------|----------|-----------|
+| DeepSeek | `openai_compatible` | `deepseek-chat` |
+| 阿里云百炼（Qwen） | `openai_compatible` | `qwen-plus` |
+| 智谱 AI | `openai_compatible` | `glm-4` |
+| Anthropic | `anthropic` | `claude-sonnet-4-20250514` |
+| 本地 Ollama | `openai_compatible` | `qwen2.5:7b` |
 
 ## 文档
 
-- [架构设计](docs/plans/2026-04-17-twin-scientist-design.md)
+- [使用指南（非技术背景）](docs/USER_GUIDE.md)
+- [架构设计文档](docs/plans/2026-04-17-twin-scientist-design.md)
 
 ## License
 

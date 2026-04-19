@@ -28,8 +28,11 @@ Twin Scientist 可以把你的科研知识、思维方式和说话风格"复刻"
 4. [添加论文知识](#添加论文知识)
 5. [添加会议录音](#添加会议录音)
 6. [开始对话](#开始对话)
-7. [纠正和进化](#纠正和进化)
-8. [常见问题](#常见问题)
+7. [分析论文图表](#分析论文图表)
+8. [语音对话](#语音对话)
+9. [参加会议](#参加会议)
+10. [纠正和进化](#纠正和进化)
+11. [常见问题](#常见问题)
 
 ---
 
@@ -325,6 +328,184 @@ print('完成')
 
 ---
 
+## 分析论文图表
+
+数字分身可以直接看懂 XRD、SEM、TEM、极化曲线等科研图像，并以你的眼光给出评价。
+
+> **前提：** 你使用的 API 服务商需要支持视觉模型，例如 `qwen-vl-plus`、`gpt-4o`、`claude-sonnet-4-20250514`。在 `config.yaml` 的 `model` 字段填写支持视觉的型号。
+
+### 在对话中发送图片
+
+启动 CLI 对话后，直接告诉分身图片的路径：
+
+```
+你：帮我看一下这张图  /path/to/xrd_pattern.png  这是氢能催化剂的XRD图谱
+分身：（用科研人员的眼光分析图像，关注晶相、峰位、杂峰等）
+```
+
+### 批量处理论文图表
+
+在处理论文 PDF 时，也可以同时提取图表印象：
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from ingestion.paper_processor import extract_figure_impressions
+
+agent = TwinScientist('.')
+impressions = extract_figure_impressions(
+    client=agent.client,
+    image_paths=['fig1.png', 'fig2.png', 'fig3.png'],
+    paper_title='你的论文标题',
+)
+for imp in impressions:
+    print(imp)
+"
+```
+
+---
+
+## 语音对话
+
+不想打字？可以直接说话。
+
+### 安装语音依赖（首次使用）
+
+```bash
+pip install openai-whisper sounddevice soundfile numpy
+```
+
+注意：`openai-whisper` 安装包较大（约 1-2GB），需要一些时间。
+
+### 语音文件转换
+
+如果你有录制好的音频文件，可以处理成语音回答：
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from interface.voice import process_voice_file
+
+agent = TwinScientist('.')
+process_voice_file(
+    agent=agent,
+    audio_input_path='my_question.wav',   # 你的提问音频
+    audio_output_path='response.mp3',     # 分身的语音回答
+    voice='zh-CN-YunxiNeural',            # 合成声音（见下方列表）
+)
+"
+```
+
+### 实时麦克风对话
+
+```bash
+./venv/bin/python -c "
+from interface.voice import run_voice_cli
+run_voice_cli('.', voice='zh-CN-YunxiNeural', duration=5)
+"
+```
+
+程序启动后，按 Enter 开始录音（默认 5 秒），说完后自动转写并生成语音回答。输入 `q` 退出。
+
+### 可用的中文语音
+
+| 声音名称 | 性别 | 风格 |
+|---------|------|------|
+| `zh-CN-YunxiNeural` | 男 | 沉稳（推荐）|
+| `zh-CN-YunjianNeural` | 男 | 活跃 |
+| `zh-CN-XiaoxiaoNeural` | 女 | 温和 |
+| `zh-CN-XiaoyiNeural` | 女 | 活泼 |
+
+在 `run_voice_cli` 的 `voice` 参数中填写任一名称即可切换。
+
+---
+
+## 参加会议
+
+数字分身可以"旁听"会议，在被点名或讨论到你的领域时自动发言。
+
+### 方式一：处理会议转写文件（推荐入门）
+
+如果你有腾讯会议、飞书等平台的自动字幕文件，先整理成如下格式保存为 `.txt`：
+
+```
+张三：今天我们讨论一下氢能催化剂的最新进展。
+李四：最近单原子催化的文章很多，请问XXX老师你怎么看？
+王五：我认为稳定性问题还没有解决……
+```
+
+然后运行：
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from interface.meeting import run_meeting_from_audio
+
+agent = TwinScientist('.')
+responses = run_meeting_from_audio(
+    agent=agent,
+    transcript_path='meeting_transcript.txt',
+    twin_name='XXX',                              # 换成发言人的名字
+    confident_domains=['氢能催化剂', '电解水', '单原子催化'],
+)
+print(f'共发言 {len(responses)} 次')
+for r in responses:
+    print(f'触发：{r[\"trigger\"]}')
+    print(f'回答：{r[\"response\"][:100]}')
+    print()
+"
+```
+
+系统会在以下情况自动发言：
+- 被点名（如"XXX 老师你怎么看"）
+- 话题涉及你的专业领域
+
+### 方式二：实时麦克风参会
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from interface.meeting import run_realtime_meeting
+
+agent = TwinScientist('.')
+run_realtime_meeting(
+    agent=agent,
+    twin_name='XXX',
+    confident_domains=['氢能催化剂', '电解水'],
+    record_duration=3,   # 每次录 3 秒后判断是否需要发言
+)
+"
+```
+
+程序会持续监听麦克风，自动识别发言内容，在合适时机生成并播放语音回答。按 Ctrl+C 退出。
+
+### 会议中的 PPT 识别
+
+在会议期间，可以同时截取屏幕内容，让分身了解当前展示的材料：
+
+```bash
+# 这段代码在会议主循环中自动触发，也可手动调用
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from multimodal.meeting_vision import analyze_screen_content
+from PIL import ImageGrab
+
+agent = TwinScientist('.')
+# 截取当前屏幕
+screenshot = ImageGrab.grab()
+screenshot.save('/tmp/screen.png')
+
+result = analyze_screen_content(
+    client=agent.client,
+    image_path='/tmp/screen.png',
+    meeting_topic='氢能催化剂进展讨论',
+)
+print(result)
+"
+```
+
+---
+
 ## 纠正和进化
 
 数字分身不可能一开始就完全准确。用以下方式告诉它哪里不像你：
@@ -413,11 +594,43 @@ export OPENAI_API_KEY=你的密钥
 
 ---
 
+**Q：图像分析提示"视觉功能不支持"**
+
+当前配置的模型不支持图像输入。需要在 `config.yaml` 中换用支持视觉的模型：
+
+```yaml
+model: qwen-vl-plus        # 阿里云 Qwen 视觉版
+# 或
+model: gpt-4o              # OpenAI
+# 或
+model: claude-sonnet-4-20250514  # Anthropic（需配合 provider: anthropic）
+```
+
+---
+
+**Q：语音对话没有声音输出**
+
+检查以下几点：
+1. 是否安装了 `sounddevice`：`pip install sounddevice soundfile`
+2. 系统音量是否开启
+3. Linux 用户可能需要：`sudo apt-get install portaudio19-dev`
+
+---
+
+**Q：实时参会时响应太慢跟不上会议节奏**
+
+这主要取决于 API 响应速度。建议：
+1. 换用响应更快的模型（如 DeepSeek 的轻量模型）
+2. 增大 `record_duration` 减少处理频次
+3. 实时模式更适合专题讨论，不适合快节奏的头脑风暴
+
+---
+
 ## 文件结构速查
 
 ```
 TwinScientist/
-├── config.yaml              ← 修改这里配置 API
+├── config.yaml              ← 修改这里配置 API（provider/base_url/model）
 ├── .env                     ← 存放 API Key（自己创建）
 ├── persona/
 │   ├── identity.yaml        ← 修改这里填写基本信息
@@ -429,6 +642,15 @@ TwinScientist/
 │   ├── papers/              ← 论文印象文件放这里
 │   ├── topics/              ← 话题详情文件放这里
 │   └── conversations/       ← 对话记忆，自动生成
-└── evolution/
-    └── changelog.yaml       ← 进化日志，自动记录
+├── evolution/
+│   └── changelog.yaml       ← 进化日志，自动记录
+├── interface/
+│   ├── cli.py               ← 文字对话（python -m interface.cli）
+│   ├── voice.py             ← 语音对话
+│   └── meeting.py           ← 会议参与
+└── multimodal/
+    ├── vision.py            ← 图像理解
+    ├── stt.py               ← 语音转文字（Whisper）
+    ├── tts.py               ← 文字转语音（edge-tts）
+    └── meeting_vision.py    ← 会议屏幕分析
 ```
