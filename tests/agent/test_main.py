@@ -163,3 +163,37 @@ def test_give_feedback_stance_update(tmp_path):
     })
 
     assert "已更新" in result or "立场" in result
+
+
+def test_see_tool_executes(tmp_path):
+    """see tool should call vision_chat and return description."""
+    from PIL import Image
+    project_dir = _make_project(tmp_path)
+    agent = TwinScientist(project_dir)
+
+    # Create a test image
+    img_path = str(tmp_path / "test_figure.png")
+    Image.new("RGB", (10, 10), color=(100, 100, 100)).save(img_path)
+
+    agent.client.vision_chat = MagicMock(return_value="这是一张XRD图谱，主峰对应Pt(111)")
+
+    result = agent._execute_tool("see", {
+        "image_path": img_path,
+        "context": "来自氢能催化剂表征实验的XRD图",
+    })
+
+    assert "XRD" in result
+    agent.client.vision_chat.assert_called_once()
+
+
+def test_see_tool_file_not_found(tmp_path):
+    """see tool should return error message when image not found."""
+    project_dir = _make_project(tmp_path)
+    agent = TwinScientist(project_dir)
+
+    result = agent._execute_tool("see", {
+        "image_path": "/nonexistent/figure.png",
+        "context": "测试",
+    })
+
+    assert "找不到" in result or "not found" in result.lower() or "错误" in result

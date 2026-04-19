@@ -65,6 +65,24 @@ TOOL_DEFINITIONS = [
             "required": ["feedback_type"],
         },
     },
+    {
+        "name": "see",
+        "description": "观察并分析一张图片（论文图表、实验截图、PPT页面）。当用户分享图片或提到图表时调用。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "image_path": {
+                    "type": "string",
+                    "description": "图片文件的路径",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "图片的背景信息，如来源、实验类型等",
+                },
+            },
+            "required": ["image_path"],
+        },
+    },
 ]
 
 
@@ -162,6 +180,9 @@ class TwinScientist:
         elif tool_name == "give_feedback":
             return self._handle_feedback(tool_input)
 
+        elif tool_name == "see":
+            return self._execute_see(tool_input)
+
         return f"Unknown tool: {tool_name}"
 
     def _llm_compress(self, turns: list[tuple[str, str]]) -> str:
@@ -231,3 +252,33 @@ class TwinScientist:
             return f"已更新「{tool_input.get('topic', '')}」的立场。"
 
         return "未知的反馈类型。"
+
+    def _execute_see(self, tool_input: dict) -> str:
+        """Execute the see tool: analyze an image with scientific lens."""
+        from multimodal.vision import analyze_figure_as_scientist
+        import yaml as _yaml
+
+        image_path = tool_input.get("image_path", "")
+        context = tool_input.get("context", "")
+
+        if not os.path.exists(image_path):
+            return f"错误：找不到图片文件 {image_path}"
+
+        # Build persona summary from identity.yaml
+        try:
+            with open(os.path.join(self.persona_dir, "identity.yaml"), "r") as f:
+                identity = _yaml.safe_load(f) or {}
+            research_focus = identity.get("research_focus", [])
+            persona_summary = "、".join(research_focus[:3]) if research_focus else ""
+        except Exception:
+            persona_summary = ""
+
+        try:
+            return analyze_figure_as_scientist(
+                client=self.client,
+                image_path=image_path,
+                figure_context=context,
+                persona_summary=persona_summary,
+            )
+        except RuntimeError as e:
+            return str(e)
