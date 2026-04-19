@@ -1,11 +1,20 @@
 # Twin Scientist Global Configuration
 
-# LLM Provider
-# provider: anthropic         # uses ANTHROPIC_API_KEY (default)
-# provider: openai_compatible # uses OPENAI_API_KEY + base_url
+# ─── LLM Provider ─────────────────────────────────────────────
+# Option A: Anthropic
+#   provider: anthropic
+#   model: claude-sonnet-4-20250514
+#   API key: set ANTHROPIC_API_KEY in .env
+#
+# Option B: OpenAI-compatible (DeepSeek / Qwen / Together / 本地 Ollama 等)
+#   provider: openai_compatible
+#   base_url: <your endpoint>
+#   model: <your model id>
+#   API key: set OPENAI_API_KEY in .env
+
 provider: openai_compatible
-base_url: https://api.deepseek.com/v1
-model: deepseek-chat
+base_url: YOUR_BASE_URL          # 例如 https://api.deepseek.com/v1
+model: YOUR_MODEL_ID             # 例如 deepseek-chat / qwen-plus
 max_tokens: 4096
 
 # Context budget (tokens)
