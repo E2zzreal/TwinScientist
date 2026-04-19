@@ -138,3 +138,65 @@ note: "说明"
     changes = load_changelog(changelog_path)
     # Snapshot should contain previous exemplar count
     assert "before_exemplar_count" in changes[0]
+
+
+from agent.evolution import apply_stance_update
+
+
+def test_apply_stance_update_modifies_topic_index(tmp_path):
+    memory_dir = str(tmp_path / "memory")
+    os.makedirs(memory_dir, exist_ok=True)
+    index_path = os.path.join(memory_dir, "topic_index.yaml")
+    index = {"topics": {
+        "hydrogen_catalyst": {
+            "summary": "关注Pt替代",
+            "paper_count": 5,
+            "stance": "看好单原子催化方向",
+            "detail_files": [],
+        }
+    }}
+    with open(index_path, "w") as f:
+        yaml.dump(index, f, allow_unicode=True)
+
+    changelog_path = _make_changelog(tmp_path)
+
+    apply_stance_update(
+        memory_dir=memory_dir,
+        changelog_path=changelog_path,
+        topic="hydrogen_catalyst",
+        new_stance="对单原子催化产业化前景更谨慎了",
+        reason="会议讨论了成本和规模化问题",
+    )
+
+    with open(index_path) as f:
+        updated = yaml.safe_load(f)
+    assert "谨慎" in updated["topics"]["hydrogen_catalyst"]["stance"]
+
+    changes = load_changelog(changelog_path)
+    assert changes[0]["type"] == "stance_update"
+    assert changes[0]["before"] == "看好单原子催化方向"
+    assert "谨慎" in changes[0]["after"]
+
+
+def test_apply_stance_update_unknown_topic(tmp_path):
+    memory_dir = str(tmp_path / "memory")
+    os.makedirs(memory_dir, exist_ok=True)
+    index_path = os.path.join(memory_dir, "topic_index.yaml")
+    with open(index_path, "w") as f:
+        yaml.dump({"topics": {}}, f)
+
+    changelog_path = _make_changelog(tmp_path)
+
+    # Should not raise, just do nothing / create topic
+    apply_stance_update(
+        memory_dir=memory_dir,
+        changelog_path=changelog_path,
+        topic="nonexistent_topic",
+        new_stance="开始了解这个方向",
+        reason="刚看了几篇paper",
+    )
+
+    with open(index_path) as f:
+        data = yaml.safe_load(f)
+    # Topic should be created
+    assert "nonexistent_topic" in data["topics"]

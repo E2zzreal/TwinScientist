@@ -122,3 +122,40 @@ def apply_style_correction(client, model: str, persona_dir: str,
         "after_exemplar_count": before_count + 1,
         "snapshot": {"exemplar_added": exemplar},
     })
+
+
+def apply_stance_update(memory_dir: str, changelog_path: str,
+                        topic: str, new_stance: str, reason: str = ""):
+    """Update the stance on a topic in topic_index.yaml."""
+    index_path = os.path.join(memory_dir, "topic_index.yaml")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            index = yaml.safe_load(f) or {"topics": {}}
+    else:
+        index = {"topics": {}}
+
+    topics = index.setdefault("topics", {})
+    old_stance = topics.get(topic, {}).get("stance", "（无记录）")
+
+    # Update or create topic entry
+    if topic not in topics:
+        topics[topic] = {
+            "summary": f"新话题，{new_stance}",
+            "paper_count": 0,
+            "stance": new_stance,
+            "detail_files": [],
+        }
+    else:
+        topics[topic]["stance"] = new_stance
+
+    with open(index_path, "w", encoding="utf-8") as f:
+        yaml.dump(index, f, allow_unicode=True, default_flow_style=False)
+
+    # Record change with before/after snapshot
+    record_change(changelog_path, "stance_update", {
+        "topic": topic,
+        "before": old_stance,
+        "after": new_stance,
+        "reason": reason,
+        "snapshot": {"topic_entry": topics[topic]},
+    })
