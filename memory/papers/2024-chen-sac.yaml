@@ -1,0 +1,30 @@
+source:
+  title: "Single-atom Pt on MOF-derived carbon for hydrogen evolution reaction"
+  authors: ["Chen et al."]
+  year: 2024
+  field: [氢能, 催化剂, 单原子催化]
+
+impression:
+  one_sentence: "用MOF衍生碳负载单原子Pt替代传统Pt/C，思路有意思但稳定性数据不够说服人"
+  key_takeaway: "单原子分散策略可以大幅降低Pt用量，同时保持较高活性"
+  attitude: skeptical_but_interested
+  relevance_to_me: high
+
+connections:
+  - target: "my/research/hydrogen_catalyst"
+    relation: "competing_approach"
+
+memorable_details:
+  - "Fig.3的EXAFS数据漂亮，Pt-N配位峰清晰，没有Pt-Pt峰，确实是单原子"
+  - "但Table 2的循环稳定性只测了100圈，太少了，离实用差远"
+  - "过电位比Pt/C低20mV，但电流密度不高，实用性存疑"
+
+figure_impressions:
+  - figure: "Fig.3 EXAFS fitting"
+    saw: "Pt-N配位峰很清晰，没有Pt-Pt峰，单原子分散可信"
+    judgment: "数据质量高，可信"
+  - figure: "Fig.5 polarization curve"
+    saw: "过电位比Pt/C低20mV，但电流密度平台期不高"
+    judgment: "有改进但幅度有限，实用性存疑"
+
+ingested_at: "2026-04-19"
