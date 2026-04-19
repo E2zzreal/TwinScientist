@@ -35,12 +35,20 @@ def create_app(agent: TwinScientist):
             try:
                 user_input = session.prompt("\n你: ").strip()
             except (EOFError, KeyboardInterrupt):
+                try:
+                    agent.end_session()
+                except Exception:
+                    pass
                 console.print("\n[dim]再见！[/dim]")
                 break
 
             if not user_input:
                 continue
             if user_input == "/quit":
+                try:
+                    agent.end_session()
+                except Exception:
+                    pass
                 console.print("[dim]再见！[/dim]")
                 break
             if user_input == "/status":

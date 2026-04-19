@@ -72,6 +72,12 @@ class TwinScientist:
         # Inject LLM compressor into ContextManager
         self.context.set_llm_compressor(self._llm_compress)
 
+        # Load previous session summary
+        from agent.session import load_latest_session_summary
+        prev_summary = load_latest_session_summary(self.memory_dir)
+        if prev_summary:
+            self.context._summary = f"[上次会话摘要]\n{prev_summary}"
+
     def build_system_prompt(self) -> str:
         base = build_system_prompt(self.persona_dir, self.memory_dir)
         dynamic = self.context.get_dynamic_content()

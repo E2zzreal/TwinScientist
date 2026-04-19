@@ -94,3 +94,39 @@ def test_twin_scientist_chat_with_tool_call(mock_anthropic, tmp_path):
 
     answer = agent.chat("你怎么看氢能？")
     assert agent.client.messages.create.call_count == 2
+
+import os
+import yaml as _yaml
+from unittest.mock import patch
+
+def test_session_summary_saved_on_end(tmp_path):
+    project_dir = _make_project(tmp_path)
+    agent = TwinScientist(project_dir)
+    agent.context.add_turn("氢能催化剂有什么进展？", "单原子Pt是个好方向，但稳定性差。")
+
+    # Mock the LLM compressor to avoid real API calls
+    with patch.object(agent, '_llm_compress', return_value="摘要：讨论了氢能催化剂稳定性问题。"):
+        agent.end_session()
+
+    session_dir = os.path.join(project_dir, "memory", "conversations")
+    files = [f for f in os.listdir(session_dir) if f.startswith("session-")]
+    assert len(files) == 1
+
+
+def test_previous_session_loaded_on_init(tmp_path):
+    project_dir = _make_project(tmp_path)
+
+    # Write a fake previous session summary
+    session_dir = os.path.join(project_dir, "memory", "conversations")
+    os.makedirs(session_dir, exist_ok=True)
+    summary_path = os.path.join(session_dir, "session-20250101-120000.yaml")
+    with open(summary_path, "w") as f:
+        _yaml.dump({
+            "type": "session_summary",
+            "summary": "上次讨论了单原子催化稳定性问题。",
+            "timestamp": "20250101-120000",
+        }, f, allow_unicode=True)
+
+    agent = TwinScientist(project_dir)
+    # Previous summary should be loaded into context
+    assert "上次讨论" in agent.context._summary
