@@ -1,8 +1,9 @@
-# Expression Style + Exemplar Pairs
-# Extracted from meeting recordings and papers
-
 voice:
-  summary: |
-    (待从录音转写和论文中提取)
+  exemplars:
+  - bad: 这个研究有一定的学术价值。
+    context: 被问到某个催化剂研究工作的评价
+    good: 转化率提了12个点，选择性在95%以上，这个数据还不错。
+    note: 本人习惯用具体数据说话，不用模糊的定性评价词（如'一定的价值'），直接给出关键指标，让数字本身说明问题。
+  summary: '(待从录音转写和论文中提取)
 
-  exemplars: []
+    '

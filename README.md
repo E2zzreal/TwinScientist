@@ -61,6 +61,12 @@ run_meeting_from_audio(agent, 'transcript.txt', twin_name='张三',
 ```
 TwinScientist/
 ├── config.yaml              # 配置（API provider / model / base_url）
+├── preprocess/              # 数据预处理（摄入前的清洗和转换）
+│   ├── audio_prep.py        # 录音：格式转换 / 分割 / 质量评估
+│   ├── transcript_clean.py  # 字幕：腾讯会议/飞书/Zoom 清洗
+│   ├── pdf_prep.py          # PDF：批量提取 / BibTeX 元数据匹配
+│   ├── batch_ingest.py      # 按清单批量摄入论文
+│   └── README.md            # 预处理详细指南
 ├── persona/                 # 人格层（YAML，可直接编辑）
 ├── memory/                  # 记忆层（话题索引 + 论文印象 + 对话记忆）
 ├── evolution/               # 进化日志（自动记录风格和立场变更）

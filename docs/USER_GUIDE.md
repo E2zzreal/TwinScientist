@@ -25,14 +25,15 @@ Twin Scientist 可以把你的科研知识、思维方式和说话风格"复刻"
 1. [第一次安装](#第一次安装)
 2. [配置 API 服务](#配置-api-服务)
 3. [填写你的基本档案](#填写你的基本档案)
-4. [添加论文知识](#添加论文知识)
-5. [添加会议录音](#添加会议录音)
-6. [开始对话](#开始对话)
-7. [分析论文图表](#分析论文图表)
-8. [语音对话](#语音对话)
-9. [参加会议](#参加会议)
-10. [纠正和进化](#纠正和进化)
-11. [常见问题](#常见问题)
+4. [数据预处理](#数据预处理)
+5. [添加论文知识](#添加论文知识)
+6. [添加会议录音](#添加会议录音)
+7. [开始对话](#开始对话)
+8. [分析论文图表](#分析论文图表)
+9. [语音对话](#语音对话)
+10. [参加会议](#参加会议)
+11. [纠正和进化](#纠正和进化)
+12. [常见问题](#常见问题)
 
 ---
 
@@ -145,6 +146,78 @@ taste_profile:
 ```
 
 填完保存即可，不需要重启系统，下次对话自动生效。
+
+---
+
+## 数据预处理
+
+在把录音、论文、字幕等数据"喂给"数字分身之前，需要先进行预处理。系统提供了一套 `preprocess/` 脚本，覆盖从原始数据到摄入就绪的全流程。
+
+### 为什么需要预处理？
+
+- 录音可能是 mp4 格式、含有大量噪音、多人说话混在一起
+- 腾讯会议/飞书的自动字幕经常断句错误、说话人标错名字
+- PDF 论文可能是扫描版、元数据（作者/年份）缺失
+- 大量论文需要批量处理而不是一篇一篇手动操作
+
+### 快速上手（完整流程）
+
+```bash
+# Step 1：处理录音 → 转换格式、分割片段、生成转写
+python preprocess/audio_prep.py \
+    --input recordings/ \
+    --output_dir data/audio/ \
+    --speaker 张三
+
+# Step 2：手动标注说话人
+# 编辑 data/audio/*_for_labeling.txt，把 ??? 改为实际说话人姓名
+
+# Step 3：处理论文 PDF → 提取文本和元数据
+python preprocess/pdf_prep.py \
+    --input papers/ \
+    --bibtex refs.bib \        # 如果有 Zotero 导出的 BibTeX（可选但推荐）
+    --output_dir data/papers/ \
+    --field 氢能 催化剂
+
+# Step 4：批量摄入论文
+python preprocess/batch_ingest.py \
+    --manifest data/papers/ingestion_manifest.json \
+    --topic hydrogen_catalyst
+
+# Step 5：清洗会议字幕（如果有腾讯会议/飞书字幕）
+python preprocess/transcript_clean.py \
+    --input 会议字幕.txt \
+    --speaker 张三 \
+    --output data/transcripts/cleaned.txt
+```
+
+### 脚本说明
+
+| 脚本 | 用途 | 输入 | 输出 |
+|------|------|------|------|
+| `audio_prep.py` | 录音格式转换、质量评估、按静音分割 | mp4/m4a/wav | WAV片段 + 转写文本 |
+| `transcript_clean.py` | 清洗腾讯/飞书/Zoom字幕 | 字幕.txt/.srt | 标准格式转写 |
+| `pdf_prep.py` | PDF批量处理、元数据识别 | PDF目录 + BibTeX | 文本 + 摄入清单 |
+| `batch_ingest.py` | 按清单批量生成论文印象 | 摄入清单.json | memory/papers/下的YAML |
+
+详细说明见 [preprocess/README.md](../preprocess/README.md)。
+
+### 安装预处理依赖
+
+```bash
+# 录音处理（需要 ffmpeg）
+pip install pydub numpy scipy
+sudo apt-get install ffmpeg          # Linux
+# brew install ffmpeg                # Mac
+
+# PDF 处理
+pip install pdfplumber
+
+# 图表提取（可选，需要 poppler）
+pip install pdf2image
+sudo apt-get install poppler-utils   # Linux
+# brew install poppler               # Mac
+```
 
 ---
 
