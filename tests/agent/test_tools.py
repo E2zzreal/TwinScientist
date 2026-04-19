@@ -82,3 +82,56 @@ def test_recall_unknown_topic(tmp_path):
     tool = RecallTool(memory_dir)
     result = tool.execute("quantum_computing", depth="summary")
     assert "没有找到" in result or "不在" in result
+
+
+# Task 2: New tests for conversation memory search and hot-reload
+
+import os
+import yaml as _yaml
+from datetime import datetime
+
+
+def _add_conversation_memory(memory_dir, topic, content):
+    """Helper: create a conversation memory file."""
+    conv_dir = os.path.join(memory_dir, "conversations")
+    os.makedirs(conv_dir, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = os.path.join(conv_dir, f"{ts}-{topic}.yaml")
+    with open(path, "w") as f:
+        _yaml.dump({"topic": topic, "content": content, "timestamp": ts}, f,
+                   allow_unicode=True)
+
+
+def test_recall_conversations(tmp_path):
+    memory_dir = _make_memory(tmp_path)
+    _add_conversation_memory(
+        str(memory_dir),
+        "hydrogen_catalyst",
+        "会议中讨论了稳定性问题，认为1000圈以上才算实用。"
+    )
+    tool = RecallTool(str(memory_dir))
+    result = tool.execute("hydrogen_catalyst", depth="conversations")
+    assert "稳定性" in result or "1000圈" in result
+
+
+def test_recall_topic_index_hotreload(tmp_path):
+    """topic_index should be reloaded on each execute call."""
+    memory_dir = _make_memory(tmp_path)
+    tool = RecallTool(str(memory_dir))
+
+    # Add a new topic to the index after init
+    index_path = os.path.join(str(memory_dir), "topic_index.yaml")
+    with open(index_path, "r") as f:
+        index = _yaml.safe_load(f)
+    index["topics"]["new_topic"] = {
+        "summary": "新话题摘要",
+        "paper_count": 0,
+        "stance": "刚开始了解",
+        "detail_files": [],
+    }
+    with open(index_path, "w") as f:
+        _yaml.dump(index, f, allow_unicode=True)
+
+    # Should find the new topic without reinitializing
+    result = tool.execute("new_topic", depth="summary")
+    assert "新话题摘要" in result
