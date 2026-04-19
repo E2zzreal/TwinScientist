@@ -1,4 +1,10 @@
 # Topic Index - Always in context
 # Each entry is a lightweight pointer; details loaded via recall tool
 
-topics: {}
+topics:
+  hydrogen_catalyst:
+    summary: "关注Pt替代和单原子催化，偏好实验验证路线"
+    paper_count: 2
+    stance: "看好但认为稳定性是核心未解决问题"
+    detail_files:
+      - papers/2024-chen-sac.yaml
