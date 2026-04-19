@@ -50,12 +50,7 @@ reasoning_patterns:
 
 def _call_llm(client, model: str, prompt: str) -> dict:
     """Call LLM and parse YAML response."""
-    response = client.messages.create(
-        model=model,
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text.strip()
+    raw = client.simple_chat(prompt, max_tokens=1000)
     raw = re.sub(r"^```(?:yaml)?\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
     try:

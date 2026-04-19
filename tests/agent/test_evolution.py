@@ -74,14 +74,11 @@ def test_apply_style_correction_adds_exemplar(tmp_path):
     changelog_path = _make_changelog(tmp_path)
 
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-context: "被问到催化剂稳定性"
+    mock_client.simple_chat.return_value = """context: "被问到催化剂稳定性"
 bad: "这个方向有一定研究价值。"
 good: "你看Table 2，只测了100圈，这离实用差太远。"
 note: "应当锚定具体数据，不说空话"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     apply_style_correction(
         client=mock_client,
@@ -116,14 +113,11 @@ def test_apply_style_correction_records_before_snapshot(tmp_path):
     changelog_path = _make_changelog(tmp_path)
 
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-context: "测试"
+    mock_client.simple_chat.return_value = """context: "测试"
 bad: "不好的回答"
 good: "好的回答"
 note: "说明"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     apply_style_correction(
         client=mock_client,

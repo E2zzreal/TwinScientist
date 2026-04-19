@@ -1,7 +1,11 @@
 # Twin Scientist Global Configuration
 
-# LLM
-model: claude-sonnet-4-20250514
+# LLM Provider
+# provider: anthropic         # uses ANTHROPIC_API_KEY (default)
+# provider: openai_compatible # uses OPENAI_API_KEY + base_url
+provider: openai_compatible
+base_url: https://api.deepseek.com/v1
+model: deepseek-chat
 max_tokens: 4096
 
 # Context budget (tokens)

@@ -24,17 +24,14 @@ SAMPLE_TRANSCRIPT = """
 
 def test_extract_style_exemplars_returns_list():
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-exemplars:
+    mock_client.simple_chat.return_value = """exemplars:
   - context: "评价实验数据"
     good: "你看这个稳定性数据，100圈就衰减了15%，离实用差太远了。"
     note: "锚定具体数据，不说空话"
   - context: "质疑实验设计"
     good: "control experiment要做干净，没有跟bulk对比，怎么证明是single atom的贡献？"
     note: "精确指出实验缺陷"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     result = extract_style_exemplars(
         client=mock_client,
@@ -50,16 +47,13 @@ exemplars:
 
 def test_extract_verbal_habits_returns_dict():
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-verbal_habits:
+    mock_client.simple_chat.return_value = """verbal_habits:
   high_frequency_phrases:
     - "你看这个数据"
     - "离实用差太远"
   sentence_style: "短句为主，直接给结论"
   language_mix: "术语用英文（single atom, control experiment），论述用中文"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     result = extract_verbal_habits(
         client=mock_client,
@@ -73,16 +67,13 @@ verbal_habits:
 
 def test_extract_reasoning_patterns_returns_dict():
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-reasoning_patterns:
+    mock_client.simple_chat.return_value = """reasoning_patterns:
   evaluating_experiment:
     steps:
       - "先问有没有对照实验"
       - "再看具体数据是否支撑claim"
     bias: "对缺乏对照实验的工作天然不信任"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     result = extract_reasoning_patterns(
         client=mock_client,

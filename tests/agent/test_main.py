@@ -1,11 +1,14 @@
 # tests/agent/test_main.py
+import os
+import yaml as _yaml
 import pytest
 from unittest.mock import MagicMock, patch
 from agent.main import TwinScientist
+from agent.llm_client import ChatResponse, ToolCall
+
 
 def _make_project(tmp_path):
     """Create minimal project structure for testing."""
-    # config
     config_file = tmp_path / "config.yaml"
     config_file.write_text("""
 model: claude-sonnet-4-20250514
@@ -24,7 +27,6 @@ paths:
   memory_dir: memory
   evolution_dir: evolution
 """)
-    # persona
     persona_dir = tmp_path / "persona"
     persona_dir.mkdir()
     (persona_dir / "identity.yaml").write_text(
@@ -34,7 +36,6 @@ paths:
     (persona_dir / "boundaries.yaml").write_text(
         "confident_domains: []\nfamiliar_but_not_expert: []\noutside_expertise: []\n"
     )
-    # memory
     memory_dir = tmp_path / "memory"
     memory_dir.mkdir()
     (memory_dir / "topic_index.yaml").write_text("topics: {}\n")
@@ -43,68 +44,61 @@ paths:
     (memory_dir / "conversations").mkdir()
     return str(tmp_path)
 
+
 def test_twin_scientist_init(tmp_path):
     project_dir = _make_project(tmp_path)
     agent = TwinScientist(project_dir)
     assert agent is not None
     assert agent.config["model"] == "claude-sonnet-4-20250514"
 
-@patch("agent.main.anthropic")
-def test_twin_scientist_chat_simple(mock_anthropic, tmp_path):
+
+def test_twin_scientist_chat_simple(tmp_path):
     project_dir = _make_project(tmp_path)
     agent = TwinScientist(project_dir)
 
-    # Mock the API response
-    mock_response = MagicMock()
-    mock_response.stop_reason = "end_turn"
-    mock_response.content = [MagicMock(text="你好，我是数字分身。", type="text")]
-    agent.client.messages.create = MagicMock(return_value=mock_response)
+    agent.client.chat = MagicMock(return_value=ChatResponse(
+        stop_reason="end_turn",
+        text="你好，我是数字分身。",
+        raw_assistant_message={"role": "assistant", "content": "你好，我是数字分身。"},
+    ))
 
     answer = agent.chat("你好")
     assert "数字分身" in answer
 
-@patch("agent.main.anthropic")
-def test_twin_scientist_chat_with_tool_call(mock_anthropic, tmp_path):
+
+def test_twin_scientist_chat_with_tool_call(tmp_path):
     project_dir = _make_project(tmp_path)
     agent = TwinScientist(project_dir)
 
-    # First response: tool call
-    tool_use_block = MagicMock()
-    tool_use_block.type = "tool_use"
-    tool_use_block.id = "tool_1"
-    tool_use_block.name = "recall"
-    tool_use_block.input = {"topic": "hydrogen_catalyst", "depth": "summary"}
+    tc = ToolCall(id="tool_1", name="recall",
+                  input={"topic": "hydrogen_catalyst", "depth": "summary"})
 
-    first_response = MagicMock()
-    first_response.stop_reason = "tool_use"
-    first_response.content = [tool_use_block]
-
-    # Second response: final text
-    text_block = MagicMock()
-    text_block.type = "text"
-    text_block.text = "氢能催化是个好方向。"
-
-    second_response = MagicMock()
-    second_response.stop_reason = "end_turn"
-    second_response.content = [text_block]
-
-    agent.client.messages.create = MagicMock(
-        side_effect=[first_response, second_response]
+    first = ChatResponse(
+        stop_reason="tool_use",
+        text="",
+        tool_calls=[tc],
+        raw_assistant_message={"role": "assistant", "content": "", "tool_calls": []},
+    )
+    second = ChatResponse(
+        stop_reason="end_turn",
+        text="氢能催化是个好方向。",
+        raw_assistant_message={"role": "assistant", "content": "氢能催化是个好方向。"},
     )
 
-    answer = agent.chat("你怎么看氢能？")
-    assert agent.client.messages.create.call_count == 2
+    agent.client.chat = MagicMock(side_effect=[first, second])
+    agent.client.tool_result_message = MagicMock(return_value=[
+        {"role": "tool", "tool_call_id": "tool_1", "content": "记忆内容"}
+    ])
 
-import os
-import yaml as _yaml
-from unittest.mock import patch
+    answer = agent.chat("你怎么看氢能？")
+    assert agent.client.chat.call_count == 2
+
 
 def test_session_summary_saved_on_end(tmp_path):
     project_dir = _make_project(tmp_path)
     agent = TwinScientist(project_dir)
     agent.context.add_turn("氢能催化剂有什么进展？", "单原子Pt是个好方向，但稳定性差。")
 
-    # Mock the LLM compressor to avoid real API calls
     with patch.object(agent, '_llm_compress', return_value="摘要：讨论了氢能催化剂稳定性问题。"):
         agent.end_session()
 
@@ -116,7 +110,6 @@ def test_session_summary_saved_on_end(tmp_path):
 def test_previous_session_loaded_on_init(tmp_path):
     project_dir = _make_project(tmp_path)
 
-    # Write a fake previous session summary
     session_dir = os.path.join(project_dir, "memory", "conversations")
     os.makedirs(session_dir, exist_ok=True)
     summary_path = os.path.join(session_dir, "session-20250101-120000.yaml")
@@ -128,7 +121,6 @@ def test_previous_session_loaded_on_init(tmp_path):
         }, f, allow_unicode=True)
 
     agent = TwinScientist(project_dir)
-    # Previous summary should be loaded into context
     assert "上次讨论" in agent.context._summary
 
 
@@ -137,14 +129,11 @@ def test_give_feedback_style_correction(tmp_path):
     project_dir = _make_project(tmp_path)
     agent = TwinScientist(project_dir)
 
-    mock_client_response = MagicMock()
-    mock_client_response.content = [MagicMock(text="""
-context: "评价实验"
+    agent.client.simple_chat = MagicMock(return_value="""context: "评价实验"
 bad: "这个研究有价值"
 good: "你看数据，100圈就衰减了"
 note: "锚定数据"
-""")]
-    agent.client.messages.create = MagicMock(return_value=mock_client_response)
+""")
 
     result = agent._execute_tool("give_feedback", {
         "feedback_type": "style",
@@ -155,7 +144,6 @@ note: "锚定数据"
 
     assert "已记录" in result or "风格" in result
 
-    # Check changelog was written
     changelog_path = os.path.join(project_dir, "evolution", "changelog.yaml")
     with open(changelog_path) as f:
         data = _yaml.safe_load(f)

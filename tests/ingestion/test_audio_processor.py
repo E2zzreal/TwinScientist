@@ -23,14 +23,11 @@ def test_process_audio_from_existing_transcript(tmp_path):
                   allow_unicode=True)
 
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-exemplars:
+    mock_client.simple_chat.return_value = """exemplars:
   - context: "评价实验"
     good: "你看这个数据，100圈就衰减了15%"
     note: "锚定数据"
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     result = process_audio(
         client=mock_client,
@@ -56,9 +53,7 @@ def test_process_audio_saves_transcript(tmp_path):
     transcript_save_path = str(tmp_path / "transcript.txt")
 
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="exemplars: []")]
-    mock_client.messages.create.return_value = mock_response
+    mock_client.simple_chat.return_value = "exemplars: []"
 
     process_audio(
         client=mock_client,

@@ -40,9 +40,7 @@ def test_extract_pdf_text_file_not_found():
 def test_generate_impression_structure():
     """generate_impression should return a dict matching the schema."""
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-impression:
+    mock_client.simple_chat.return_value = """impression:
   one_sentence: "用MOF衍生碳负载单原子Pt，思路好但稳定性不足"
   key_takeaway: "单原子分散可降低Pt用量"
   attitude: skeptical_but_interested
@@ -50,8 +48,7 @@ impression:
 memorable_details:
   - "Fig.3的EXAFS数据漂亮"
 connections: []
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     result = generate_impression(
         client=mock_client,
@@ -71,17 +68,14 @@ def test_process_paper_creates_yaml(tmp_path):
     os.makedirs(os.path.join(memory_dir, "papers"), exist_ok=True)
 
     mock_client = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="""
-impression:
+    mock_client.simple_chat.return_value = """impression:
   one_sentence: "测试论文印象"
   key_takeaway: "关键结论"
   attitude: neutral
   relevance_to_me: medium
 memorable_details: []
 connections: []
-""")]
-    mock_client.messages.create.return_value = mock_response
+"""
 
     output_path = process_paper(
         client=mock_client,

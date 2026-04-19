@@ -65,12 +65,8 @@ def generate_impression(client, model: str, paper_text: str,
         title=metadata.get("title", "Unknown"),
         year=metadata.get("year", "Unknown"),
     )
-    response = client.messages.create(
-        model=model,
-        max_tokens=800,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text.strip()
+    response = client.simple_chat(prompt, max_tokens=800)
+    raw = response
 
     # Strip markdown code fences if present
     raw = re.sub(r"^```(?:yaml)?\n?", "", raw)

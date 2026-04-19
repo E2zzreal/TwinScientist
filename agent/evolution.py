@@ -89,12 +89,7 @@ def apply_style_correction(client, model: str, persona_dir: str,
         feedback=feedback,
         context=context or "（未提供上下文）",
     )
-    response = client.messages.create(
-        model=model,
-        max_tokens=400,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw = response.content[0].text.strip()
+    raw = client.simple_chat(prompt, max_tokens=400)
     raw = re.sub(r"^```(?:yaml)?\n?", "", raw)
     raw = re.sub(r"\n?```$", "", raw)
 
