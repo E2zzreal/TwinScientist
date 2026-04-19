@@ -1,0 +1,434 @@
+# Twin Scientist 使用指南
+
+> 面向科研人员的数字分身系统 —— 无需编程背景即可上手
+
+---
+
+## 这是什么？
+
+Twin Scientist 可以把你的科研知识、思维方式和说话风格"复刻"成一个 AI 对话助手。
+
+**它能做什么：**
+- 用你自己的方式评价论文、回答学术问题
+- 记住你看过的文章、形成的观点
+- 随时间不断进化，越用越像你
+
+**它不能做什么：**
+- 它不会替你做实验
+- 它不会自动搜索最新文献
+- 它的知识来源于你主动提供的材料
+
+---
+
+## 目录
+
+1. [第一次安装](#第一次安装)
+2. [配置 API 服务](#配置-api-服务)
+3. [填写你的基本档案](#填写你的基本档案)
+4. [添加论文知识](#添加论文知识)
+5. [添加会议录音](#添加会议录音)
+6. [开始对话](#开始对话)
+7. [纠正和进化](#纠正和进化)
+8. [常见问题](#常见问题)
+
+---
+
+## 第一次安装
+
+### 你需要准备
+
+- 一台装有 Python 的电脑（Windows / Mac / Linux 均可）
+- 一个 AI API 账号（如 DeepSeek、Qwen 等，需要自行申请）
+- 项目文件（从 GitHub 下载）
+
+### 步骤
+
+**1. 下载项目**
+
+打开终端（Windows 用命令提示符或 PowerShell，Mac/Linux 用 Terminal），输入：
+
+```bash
+git clone https://github.com/E2zzreal/TwinScientist.git
+cd TwinScientist
+```
+
+**2. 创建运行环境**
+
+```bash
+python3 -m venv venv
+```
+
+激活环境：
+- Mac / Linux：`source venv/bin/activate`
+- Windows：`venv\Scripts\activate`
+
+激活后，命令行最前面会出现 `(venv)` 字样。
+
+**3. 安装依赖**
+
+```bash
+pip install -r requirements.txt
+```
+
+这一步需要几分钟，有网络才能完成。
+
+---
+
+## 配置 API 服务
+
+系统通过 AI API 来驱动对话。你需要有一个 API 账号，并把密钥告诉系统。
+
+### 第一步：填写 API 配置
+
+打开项目根目录的 `config.yaml` 文件（可以用记事本、VS Code 或任意文本编辑器打开）。
+
+找到以下几行，把占位符替换成你自己的值：
+
+```yaml
+provider: openai_compatible
+base_url: YOUR_BASE_URL    ← 改成你的 API 地址
+model: YOUR_MODEL_ID       ← 改成你要用的模型名
+```
+
+**常见平台填写示例：**
+
+| 平台 | base_url | model |
+|------|----------|-------|
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+| 阿里云百炼（Qwen） | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-plus` |
+| 智谱 AI | `https://open.bigmodel.cn/api/paas/v4` | `glm-4` |
+| 本地 Ollama | `http://localhost:11434/v1` | `qwen2.5:7b` |
+
+### 第二步：设置 API Key
+
+**不要把 Key 直接写进 config.yaml**（避免泄露）。
+
+把 Key 存到环境变量中。每次打开终端后运行一次：
+
+```bash
+export OPENAI_API_KEY=你的API密钥
+```
+
+或者把这行加入你的 `~/.bashrc` / `~/.zshrc`，就不用每次手动输入了。
+
+---
+
+## 填写你的基本档案
+
+系统需要了解"你是谁"才能模仿你的风格。打开 `persona/identity.yaml`，用文本编辑器填写以下内容：
+
+```yaml
+personality_sketch: |
+  在这里用几句话描述你的说话风格。
+  例如：说话直接，喜欢用具体数据说话。
+  不喜欢模糊表达，有观点会直接说出来。
+
+core_beliefs:
+  - claim: "你最确信的一个学术观点"
+    confidence: high
+  - claim: "另一个观点，但没那么确定"
+    confidence: medium
+
+research_focus:
+  - "你的主要研究方向，如：氢能催化剂"
+  - "次要方向，如：固态电池"
+
+taste_profile:
+  excited_by:
+    - "让你感到兴奋的研究类型，如：新型表征手段"
+    - "另一种，如：跨领域迁移的想法"
+  skeptical_of:
+    - "让你持怀疑态度的东西，如：只有计算没有实验的paper"
+```
+
+填完保存即可，不需要重启系统，下次对话自动生效。
+
+---
+
+## 添加论文知识
+
+系统不直接"阅读"整篇论文，而是存储你对论文的**印象和评价**——就像你自己记笔记一样。
+
+### 方式一：自动处理 PDF（推荐）
+
+如果你有论文的 PDF 文件，可以用以下命令自动提取：
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from ingestion.paper_processor import process_paper
+
+agent = TwinScientist('.')
+process_paper(
+    client=agent.client,
+    model=agent.config['model'],
+    pdf_path='你的论文.pdf',          # 换成实际路径
+    memory_dir='memory',
+    metadata={
+        'title': '论文标题',
+        'authors': ['作者姓名'],
+        'year': 2024,
+        'field': ['氢能', '催化剂'],
+    }
+)
+print('完成')
+"
+```
+
+运行后，系统会用 AI 阅读论文，生成印象文件，存到 `memory/papers/` 目录。
+
+### 方式二：手动填写（更准确）
+
+在 `memory/papers/` 目录下新建一个 YAML 文件，文件名格式为 `年份-关键词.yaml`，例如 `2024-chen-sac.yaml`：
+
+```yaml
+source:
+  title: "论文完整标题"
+  authors: ["第一作者", "通讯作者"]
+  year: 2024
+  field: [氢能, 催化剂, 单原子催化]
+
+impression:
+  one_sentence: "一句话总结这篇论文，加上你的评价"
+  key_takeaway: "这篇论文最值得记住的一个点"
+  attitude: skeptical_but_interested   # 从以下选一个：
+                                       # excited / interested / neutral
+                                       # skeptical_but_interested / skeptical / critical
+  relevance_to_me: high               # high / medium / low
+
+memorable_details:
+  - "你记住的具体数据点，如：Fig.3的EXAFS数据，Pt-N峰清晰"
+  - "另一个细节，如：但稳定性只测了100圈，太少"
+
+connections:
+  - target: "相关论文的文件名（不含.yaml）"
+    relation: "关系类型，如 extends / competing_approach / inspired_by"
+```
+
+### 更新话题索引
+
+添加完论文后，需要在 `memory/topic_index.yaml` 中登记这个话题（如果还没有的话）：
+
+```yaml
+topics:
+  hydrogen_catalyst:              # 话题ID，英文，下划线分隔
+    summary: "一句话描述你在这个方向的关注点"
+    paper_count: 5                # 这个话题下有几篇论文（大概数字即可）
+    stance: "你对这个方向的总体立场"
+    detail_files:
+      - papers/2024-chen-sac.yaml  # 列出相关论文的文件名
+      - papers/2023-wang-review.yaml
+```
+
+---
+
+## 添加会议录音
+
+录音是人格提取质量最高的来源，推荐优先处理。
+
+### 准备录音文件
+
+支持格式：`.mp3`、`.wav`、`.m4a` 等常见音频格式。
+
+建议选择发言人说话清晰、内容与学术讨论相关的片段，时长 10 分钟到数小时均可。
+
+### 安装语音识别（首次使用）
+
+```bash
+pip install openai-whisper
+```
+
+注意：这个安装包较大（约 1-2GB），需要一些时间。
+
+### 处理录音
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from ingestion.audio_processor import process_audio
+
+agent = TwinScientist('.')
+result = process_audio(
+    client=agent.client,
+    model=agent.config['model'],
+    persona_dir='persona',
+    speaker='张三',                    # 换成发言人的名字
+    audio_path='会议录音.mp3',          # 换成实际文件路径
+    save_transcript_to='transcripts/会议录音.txt',   # 可选，保存转写文本
+)
+print(f'提取了 {result[\"exemplars_added\"]} 个风格示范')
+"
+```
+
+处理完成后，系统会自动把提取出的风格特征更新到 `persona/style.yaml`。
+
+### 如果只有转写文本
+
+如果你已经有会议的文字转写（比如腾讯会议、飞书的自动字幕），可以跳过语音识别，直接用文本：
+
+```bash
+./venv/bin/python -c "
+from agent.main import TwinScientist
+from ingestion.audio_processor import process_audio
+
+agent = TwinScientist('.')
+with open('会议转写.txt', 'r') as f:
+    transcript = f.read()
+
+process_audio(
+    client=agent.client,
+    model=agent.config['model'],
+    persona_dir='persona',
+    speaker='张三',                    # 换成发言人的名字
+    transcript_text=transcript,
+)
+print('完成')
+"
+```
+
+---
+
+## 开始对话
+
+一切准备好后，在终端输入：
+
+```bash
+./venv/bin/python -m interface.cli
+```
+
+界面会显示一个对话框，你可以直接输入问题。
+
+### 可用的特殊命令
+
+| 命令 | 作用 |
+|------|------|
+| `/quit` | 退出对话，自动保存本次会话摘要 |
+| `/status` | 查看当前记忆占用情况 |
+
+### 对话技巧
+
+**普通问答：** 直接提问，系统会用数字分身的风格回答。
+
+```
+你：你怎么看最近单原子催化在HER上的进展？
+分身：好，说说我的看法……
+```
+
+**讨论具体论文：** 提到论文相关信息，系统会自动调用记忆。
+
+```
+你：Chen 2024那篇MOF衍生碳的工作你怎么评价？
+分身：（自动加载该论文的印象，给出有依据的评价）
+```
+
+**超出范围的问题：** 数字分身会诚实说"这不是我的方向"。
+
+---
+
+## 纠正和进化
+
+数字分身不可能一开始就完全准确。用以下方式告诉它哪里不像你：
+
+### 纠正说话风格
+
+如果你觉得某个回答"不像你说话"，直接告诉它：
+
+```
+你：刚才那个回答不像我，我不会说"有一定研究价值"，我会直接说数据
+```
+
+系统会把这个反馈记录下来，生成一个新的风格示范，下次对话就会改进。
+
+### 更新学术立场
+
+如果你的观点随时间变化了：
+
+```
+你：我现在对单原子催化的看法变了，产业化时间线比我之前想的要长很多
+```
+
+系统会更新你在这个话题上的立场，以后回答相关问题时会反映新观点。
+
+### 查看进化记录
+
+所有的修改都记录在 `evolution/changelog.yaml` 中，可以随时打开查看历史变更。如果某次修改效果不好，可以手动删除对应的条目，再把 `persona/style.yaml` 恢复到之前的版本。
+
+---
+
+## 常见问题
+
+**Q：运行时报 "OPENAI_API_KEY not set" 错误**
+
+需要先设置环境变量：
+```bash
+export OPENAI_API_KEY=你的密钥
+```
+然后再运行程序。每次打开新的终端窗口都需要重新设置，除非你把它加入了系统配置文件。
+
+---
+
+**Q：对话回复很慢**
+
+这取决于你使用的 AI 服务的响应速度，和系统本身无关。可以尝试换用更快的模型（在 `config.yaml` 的 `model` 字段修改）。
+
+---
+
+**Q：分身说话不像目标科研人员**
+
+这通常是因为 `persona/identity.yaml` 填写不够具体，或者还没有处理录音。建议：
+1. 先运行交互式初始化，回答一系列问题：
+   ```bash
+   ./venv/bin/python -c "
+   from ingestion.interactive_init import run_interactive_init
+   run_interactive_init('persona')
+   "
+   ```
+2. 提供至少一段 30 分钟以上的会议录音
+3. 通过对话中的反馈逐步纠正
+
+---
+
+**Q：记忆里加了论文，但对话中没有体现**
+
+检查两件事：
+1. `memory/topic_index.yaml` 中是否有对应话题，且 `detail_files` 列表里包含了该论文的文件名
+2. 论文文件是否在 `memory/papers/` 目录下，且文件名与 topic_index 中一致
+
+---
+
+**Q：如何备份我的数字分身数据**
+
+把以下目录复制到安全位置即可：
+- `persona/`（人格档案）
+- `memory/`（知识记忆）
+- `evolution/`（进化日志）
+
+这三个目录存储了所有关键信息，代码本身可以从 GitHub 重新下载。
+
+---
+
+**Q：可以给别人用吗？**
+
+可以，把整个项目文件夹发给对方，对方按本指南安装配置即可。但 `persona/` 和 `memory/` 目录包含个人学术信息，分享前请确认当事人同意。
+
+---
+
+## 文件结构速查
+
+```
+TwinScientist/
+├── config.yaml              ← 修改这里配置 API
+├── .env                     ← 存放 API Key（自己创建）
+├── persona/
+│   ├── identity.yaml        ← 修改这里填写基本信息
+│   ├── style.yaml           ← 自动更新，也可手动添加示范
+│   ├── thinking_frameworks.yaml  ← 思维框架，自动更新
+│   └── boundaries.yaml     ← 专业领域边界
+├── memory/
+│   ├── topic_index.yaml     ← 修改这里添加话题
+│   ├── papers/              ← 论文印象文件放这里
+│   ├── topics/              ← 话题详情文件放这里
+│   └── conversations/       ← 对话记忆，自动生成
+└── evolution/
+    └── changelog.yaml       ← 进化日志，自动记录
+```
