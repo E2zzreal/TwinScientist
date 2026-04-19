@@ -15,3 +15,7 @@ pytest-asyncio>=0.24.0
 
 # Utilities
 python-dotenv>=1.0
+
+# Ingestion
+pypdf>=4.0
+# openai-whisper>=20231117  # optional, uncomment for audio transcription
