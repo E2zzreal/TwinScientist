@@ -117,3 +117,46 @@ def process_paper(client, model: str, pdf_path: str, memory_dir: str,
         yaml.dump(record, f, allow_unicode=True, default_flow_style=False)
 
     return output_path
+
+
+FIGURE_PROMPT = """你正在分析一篇材料科学论文（标题：{title}）中的图表。
+请从科研人员视角简洁描述这张图，输出YAML格式（只输出YAML，不要其他文字）：
+
+figure: "图的标题或编号（如果能识别）"
+saw: "你看到了什么（具体数据、趋势、特征）"
+judgment: "这个数据的质量和可信度评估"
+"""
+
+
+def extract_figure_impressions(client, image_paths: list[str],
+                                paper_title: str = "") -> list[dict]:
+    """Analyze figure images and return impression dicts."""
+    if not image_paths:
+        return []
+
+    import re
+    results = []
+    for img_path in image_paths:
+        if not os.path.exists(img_path):
+            continue
+        try:
+            from multimodal.vision import image_file_to_b64
+            b64, media_type = image_file_to_b64(img_path)
+            prompt = FIGURE_PROMPT.format(title=paper_title or "未知")
+            raw = client.vision_chat(
+                prompt=prompt,
+                image_b64=b64,
+                media_type=media_type,
+                max_tokens=300,
+            )
+            raw = re.sub(r"^```(?:yaml)?\n?", "", raw.strip())
+            raw = re.sub(r"\n?```$", "", raw)
+            try:
+                impression = yaml.safe_load(raw) or {"raw": raw}
+            except yaml.YAMLError:
+                impression = {"raw": raw}
+            results.append(impression)
+        except Exception as e:
+            results.append({"error": str(e), "path": img_path})
+
+    return results

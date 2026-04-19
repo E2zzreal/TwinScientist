@@ -92,3 +92,40 @@ connections: []
     assert "source" in data
     assert "impression" in data
     assert data["source"]["title"] == "Test Paper"
+
+
+from ingestion.paper_processor import extract_figure_impressions
+
+
+def test_extract_figure_impressions_from_image(tmp_path):
+    """extract_figure_impressions should return list of figure analyses."""
+    from PIL import Image
+    img_path = str(tmp_path / "fig1.png")
+    Image.new("RGB", (50, 50), color=(180, 180, 180)).save(img_path)
+
+    mock_client = MagicMock()
+    mock_client.vision_chat.return_value = """figure: "Fig.1 XRD patterns"
+saw: "主峰对应Pt(111)，2θ约39.8度，无杂峰"
+judgment: "晶相纯净，数据可信"
+"""
+
+    result = extract_figure_impressions(
+        client=mock_client,
+        image_paths=[img_path],
+        paper_title="Test Paper",
+    )
+
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert "saw" in result[0] or len(result[0]) > 0
+
+
+def test_extract_figure_impressions_empty():
+    """Empty image list should return empty list."""
+    mock_client = MagicMock()
+    result = extract_figure_impressions(
+        client=mock_client,
+        image_paths=[],
+        paper_title="Test",
+    )
+    assert result == []
