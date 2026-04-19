@@ -44,6 +44,45 @@ TOOL_DEFINITIONS = [
             "required": ["topic", "content"],
         },
     },
+    {
+        "name": "give_feedback",
+        "description": "记录用户对回答的反馈，触发风格校正或立场更新。当用户说'不像我'时用feedback_type=style；当用户说'我现在不这么看了'时用feedback_type=stance。",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "feedback_type": {
+                    "type": "string",
+                    "enum": ["style", "stance"],
+                    "description": "style=风格校正，stance=立场更新",
+                },
+                "feedback": {
+                    "type": "string",
+                    "description": "用户的反馈内容（style类型必填）",
+                },
+                "original_response": {
+                    "type": "string",
+                    "description": "被反馈的原始回答（style类型必填）",
+                },
+                "context": {
+                    "type": "string",
+                    "description": "对话上下文简述",
+                },
+                "topic": {
+                    "type": "string",
+                    "description": "相关话题ID（stance类型必填）",
+                },
+                "new_stance": {
+                    "type": "string",
+                    "description": "新的立场（stance类型必填）",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "立场变化的原因",
+                },
+            },
+            "required": ["feedback_type"],
+        },
+    },
 ]
 
 
@@ -149,6 +188,9 @@ class TwinScientist:
                 source=tool_input.get("source", "conversation"),
             )
 
+        elif tool_name == "give_feedback":
+            return self._handle_feedback(tool_input)
+
         return f"Unknown tool: {tool_name}"
 
     def _llm_compress(self, turns: list[tuple[str, str]]) -> str:
@@ -191,3 +233,48 @@ class TwinScientist:
 
         final_summary = "\n".join(summary_parts)
         save_session_summary(self.memory_dir, final_summary)
+
+    def _handle_feedback(self, tool_input: dict) -> str:
+        """Route feedback to the appropriate evolution handler."""
+        from agent.evolution import apply_style_correction, apply_stance_update
+        import os
+
+        changelog_path = os.path.join(
+            self.project_dir,
+            self.config.get("paths", {}).get("evolution_dir", "evolution"),
+            "changelog.yaml",
+        )
+        # Ensure changelog file exists
+        if not os.path.exists(changelog_path):
+            import yaml
+            os.makedirs(os.path.dirname(changelog_path), exist_ok=True)
+            with open(changelog_path, "w") as f:
+                yaml.dump({"changes": []}, f)
+
+        feedback_type = tool_input.get("feedback_type", "style")
+
+        if feedback_type == "style":
+            apply_style_correction(
+                client=self.client,
+                model=self.config["model"],
+                persona_dir=self.persona_dir,
+                changelog_path=changelog_path,
+                original_response=tool_input.get("original_response", ""),
+                feedback=tool_input.get("feedback", ""),
+                context=tool_input.get("context", ""),
+            )
+            return "已记录风格反馈，下次对话将体现改进。"
+
+        elif feedback_type == "stance":
+            apply_stance_update(
+                memory_dir=self.memory_dir,
+                changelog_path=changelog_path,
+                topic=tool_input.get("topic", ""),
+                new_stance=tool_input.get("new_stance", ""),
+                reason=tool_input.get("reason", ""),
+            )
+            # Reload recall tool's index
+            self.recall_tool = self.recall_tool.__class__(self.memory_dir)
+            return f"已更新「{tool_input.get('topic', '')}」的立场。"
+
+        return "未知的反馈类型。"

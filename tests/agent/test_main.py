@@ -130,3 +130,48 @@ def test_previous_session_loaded_on_init(tmp_path):
     agent = TwinScientist(project_dir)
     # Previous summary should be loaded into context
     assert "上次讨论" in agent.context._summary
+
+
+def test_give_feedback_style_correction(tmp_path):
+    """give_feedback with 'not like me' should trigger style correction."""
+    project_dir = _make_project(tmp_path)
+    agent = TwinScientist(project_dir)
+
+    mock_client_response = MagicMock()
+    mock_client_response.content = [MagicMock(text="""
+context: "评价实验"
+bad: "这个研究有价值"
+good: "你看数据，100圈就衰减了"
+note: "锚定数据"
+""")]
+    agent.client.messages.create = MagicMock(return_value=mock_client_response)
+
+    result = agent._execute_tool("give_feedback", {
+        "feedback_type": "style",
+        "feedback": "不像我，我会直接说数据",
+        "original_response": "这个研究有价值",
+        "context": "讨论稳定性",
+    })
+
+    assert "已记录" in result or "风格" in result
+
+    # Check changelog was written
+    changelog_path = os.path.join(project_dir, "evolution", "changelog.yaml")
+    with open(changelog_path) as f:
+        data = _yaml.safe_load(f)
+    assert len(data["changes"]) >= 1
+
+
+def test_give_feedback_stance_update(tmp_path):
+    """give_feedback with stance update should modify topic_index."""
+    project_dir = _make_project(tmp_path)
+    agent = TwinScientist(project_dir)
+
+    result = agent._execute_tool("give_feedback", {
+        "feedback_type": "stance",
+        "topic": "hydrogen_catalyst",
+        "new_stance": "对产业化更谨慎了",
+        "reason": "成本太高",
+    })
+
+    assert "已更新" in result or "立场" in result
