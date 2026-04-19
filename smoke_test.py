@@ -1,16 +1,30 @@
 #!/usr/bin/env python3
 """
 Smoke test: verifies end-to-end agent flow with real API calls.
-Run: ANTHROPIC_API_KEY=sk-ant-xxx ./venv/bin/python smoke_test.py
+Run: OPENAI_API_KEY=xxx ./venv/bin/python smoke_test.py      # openai_compatible
+     ANTHROPIC_API_KEY=xxx ./venv/bin/python smoke_test.py   # anthropic
 """
 import os
 import sys
+import yaml
 
-# Verify API key
-if not os.environ.get("ANTHROPIC_API_KEY"):
-    print("ERROR: ANTHROPIC_API_KEY not set.")
-    print("Run: export ANTHROPIC_API_KEY=sk-ant-xxxxx")
-    sys.exit(1)
+# Read provider from config.yaml
+_config_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+with open(_config_path) as f:
+    _cfg = yaml.safe_load(f)
+_provider = _cfg.get("provider", "anthropic")
+
+# Verify the correct API key is set
+if _provider == "anthropic":
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("ERROR: ANTHROPIC_API_KEY not set.")
+        print("Run: export ANTHROPIC_API_KEY=sk-ant-xxxxx")
+        sys.exit(1)
+else:
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("ERROR: OPENAI_API_KEY not set.")
+        print("Run: export OPENAI_API_KEY=your-key")
+        sys.exit(1)
 
 from agent.main import TwinScientist
 
