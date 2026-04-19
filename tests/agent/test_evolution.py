@@ -56,3 +56,85 @@ def test_rollback_last_n_removes_entries(tmp_path):
     with open(path) as f:
         data = yaml.safe_load(f)
     assert len(data["changes"]) == 1
+
+
+from unittest.mock import MagicMock
+from agent.evolution import apply_style_correction
+
+
+def test_apply_style_correction_adds_exemplar(tmp_path):
+    """apply_style_correction should add a corrected exemplar to style.yaml."""
+    persona_dir = str(tmp_path / "persona")
+    os.makedirs(persona_dir, exist_ok=True)
+    style_path = os.path.join(persona_dir, "style.yaml")
+    with open(style_path, "w") as f:
+        yaml.dump({"voice": {"summary": "直接", "exemplars": []}}, f,
+                  allow_unicode=True)
+
+    changelog_path = _make_changelog(tmp_path)
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="""
+context: "被问到催化剂稳定性"
+bad: "这个方向有一定研究价值。"
+good: "你看Table 2，只测了100圈，这离实用差太远。"
+note: "应当锚定具体数据，不说空话"
+""")]
+    mock_client.messages.create.return_value = mock_response
+
+    apply_style_correction(
+        client=mock_client,
+        model="claude-sonnet-4-20250514",
+        persona_dir=persona_dir,
+        changelog_path=changelog_path,
+        original_response="这个方向有一定研究价值。",
+        feedback="不像我，我会直接说数据，而不是说'有研究价值'",
+        context="用户问催化剂稳定性进展",
+    )
+
+    with open(style_path) as f:
+        style = yaml.safe_load(f)
+    assert len(style["voice"]["exemplars"]) == 1
+    assert "100圈" in style["voice"]["exemplars"][0]["good"]
+
+    changes = load_changelog(changelog_path)
+    assert len(changes) == 1
+    assert changes[0]["type"] == "style_correction"
+
+
+def test_apply_style_correction_records_before_snapshot(tmp_path):
+    persona_dir = str(tmp_path / "persona")
+    os.makedirs(persona_dir, exist_ok=True)
+    style_path = os.path.join(persona_dir, "style.yaml")
+    existing = {"voice": {"summary": "直接", "exemplars": [
+        {"context": "old", "good": "old text", "note": "old"}
+    ]}}
+    with open(style_path, "w") as f:
+        yaml.dump(existing, f, allow_unicode=True)
+
+    changelog_path = _make_changelog(tmp_path)
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [MagicMock(text="""
+context: "测试"
+bad: "不好的回答"
+good: "好的回答"
+note: "说明"
+""")]
+    mock_client.messages.create.return_value = mock_response
+
+    apply_style_correction(
+        client=mock_client,
+        model="claude-sonnet-4-20250514",
+        persona_dir=persona_dir,
+        changelog_path=changelog_path,
+        original_response="不好的回答",
+        feedback="语气太正式了",
+        context="讨论论文",
+    )
+
+    changes = load_changelog(changelog_path)
+    # Snapshot should contain previous exemplar count
+    assert "before_exemplar_count" in changes[0]
