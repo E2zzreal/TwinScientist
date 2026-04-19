@@ -57,3 +57,33 @@ def test_get_budget_status():
     assert "dynamic_zone" in status
     assert "conversation_zone" in status
     assert status["conversation_used"] == 0
+
+
+# --- M2: LLM compression tests ---
+
+from unittest.mock import MagicMock, patch
+
+def test_llm_compress_called_when_overflow():
+    """When turns overflow window, LLM compressor should be called."""
+    cm = ContextManager(_make_config())
+
+    mock_llm = MagicMock()
+    mock_llm.return_value = "摘要：讨论了氢能催化剂，结论是稳定性是瓶颈。"
+    cm.set_llm_compressor(mock_llm)
+
+    for i in range(5):
+        cm.add_turn(f"user{i}", f"answer{i}")
+
+    cm.prepare("new message")
+
+    mock_llm.assert_called_once()
+    assert "摘要" in cm._summary
+
+def test_fallback_compress_when_no_llm():
+    """Without LLM compressor, should fall back to naive compression."""
+    cm = ContextManager(_make_config())
+    for i in range(5):
+        cm.add_turn(f"user{i}", f"answer{i}")
+    cm.prepare("new message")
+    # Naive fallback: should still produce a summary
+    assert len(cm._summary) > 0

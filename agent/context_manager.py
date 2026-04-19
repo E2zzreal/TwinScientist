@@ -20,6 +20,7 @@ class ContextManager:
         # Conversation state
         self._turns: list[tuple[str, str]] = []  # (user_msg, assistant_msg)
         self._summary: str = ""  # compressed older turns
+        self._llm_compressor = None  # optional: fn(turns: list[tuple]) -> str
 
         # Dynamic zone
         self._dynamic: dict[str, str] = {}  # topic -> content
@@ -56,22 +57,34 @@ class ContextManager:
 
         return messages
 
+    def set_llm_compressor(self, compressor_fn):
+        """Inject LLM-based compressor. fn(turns: list[tuple[str,str]]) -> str"""
+        self._llm_compressor = compressor_fn
+
     def _compress(self):
-        """Compress older turns into a summary."""
+        """Compress older turns into a summary using LLM if available."""
         overflow_count = len(self._turns) - self.recent_window
         if overflow_count <= 0:
             return
 
         old_turns = self._turns[:overflow_count]
-        # Simple compression: concatenate key points
-        new_summary_parts = []
-        if self._summary:
-            new_summary_parts.append(self._summary)
-        for user_msg, assistant_msg in old_turns:
-            new_summary_parts.append(f"- 用户问: {user_msg[:100]}")
-            new_summary_parts.append(f"  回答要点: {assistant_msg[:100]}")
 
-        self._summary = "\n".join(new_summary_parts)
+        if self._llm_compressor:
+            # LLM-powered compression
+            new_part = self._llm_compressor(old_turns)
+        else:
+            # Naive fallback: keep first 200 chars of each message
+            lines = []
+            for user_msg, assistant_msg in old_turns:
+                lines.append(f"- 用户: {user_msg[:200]}")
+                lines.append(f"  回答: {assistant_msg[:200]}")
+            new_part = "\n".join(lines)
+
+        if self._summary:
+            self._summary = self._summary + "\n" + new_part
+        else:
+            self._summary = new_part
+
         self._turns = self._turns[overflow_count:]
 
     # --- Dynamic zone management ---

@@ -69,6 +69,9 @@ class TwinScientist:
         self.recall_tool = RecallTool(self.memory_dir)
         self.save_tool = SaveToMemoryTool(self.memory_dir)
 
+        # Inject LLM compressor into ContextManager
+        self.context.set_llm_compressor(self._llm_compress)
+
     def build_system_prompt(self) -> str:
         base = build_system_prompt(self.persona_dir, self.memory_dir)
         dynamic = self.context.get_dynamic_content()
@@ -141,3 +144,44 @@ class TwinScientist:
             )
 
         return f"Unknown tool: {tool_name}"
+
+    def _llm_compress(self, turns: list[tuple[str, str]]) -> str:
+        """Use Claude to compress conversation turns into a concise summary."""
+        turns_text = "\n".join(
+            f"用户: {u}\n回答: {a}" for u, a in turns
+        )
+        prompt = f"""以下是一段对话记录，请压缩成简洁摘要（不超过300字）。
+保留：话题、关键结论、重要观点、提到的具体数据或论文。
+舍弃：重复内容、寒暄、过渡语句。
+
+对话记录：
+{turns_text}
+
+摘要："""
+
+        response = self.client.messages.create(
+            model=self.config["model"],
+            max_tokens=400,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.content[0].text.strip()
+
+    def end_session(self):
+        """Persist current session summary to disk for next session."""
+        from agent.session import save_session_summary
+        # Build a summary of this entire session
+        all_turns = list(self.context._turns)
+        if not all_turns and not self.context._summary:
+            return
+
+        summary_parts = []
+        if self.context._summary:
+            summary_parts.append(self.context._summary)
+
+        # Use LLM to compress remaining turns if any
+        if all_turns:
+            compressed = self._llm_compress(all_turns)
+            summary_parts.append(compressed)
+
+        final_summary = "\n".join(summary_parts)
+        save_session_summary(self.memory_dir, final_summary)
